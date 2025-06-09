@@ -1,0 +1,112 @@
+const Booking = require("../models/Booking");
+const User = require("../models/User");
+// const sendSMS = require("../utils/sms");
+
+exports.createBooking = async (req, res) => {
+  try {
+    const { name, phone, service, date, duration = 60 } = req.body;
+    const startDate = new Date(date);
+    const endDate = new Date(startDate.getTime() + duration * 60000); // مدت زمان به میلی‌ثانیه
+
+    // جستجوی نوبت‌هایی که با بازه جدید تداخل دارند
+    const conflict = await Booking.findOne({
+      date: { $lt: endDate }, // شروع نوبت‌های قبلی قبل از پایان نوبت جدید
+      $expr: {
+        $gt: [
+          { $add: ["$date", { $multiply: ["$duration", 60000] }] },
+          startDate,
+        ],
+      }, // پایان نوبت قبلی بعد از شروع نوبت جدید
+    });
+
+    if (conflict) {
+      return res.status(409).json({ error: "Time slot is already booked." });
+    }
+
+    const booking = await Booking.create({
+      userId: req.userId || null, // اگه لاگین بود
+      name,
+      phone,
+      service,
+      date: startDate,
+      duration,
+    });
+    res.status(201).json(booking);
+    // await sendSMS(
+    //   phone,
+    //   name,
+    //   startDate.toLocaleDateString("fa-IR"),
+    //   startDate.toLocaleTimeString("fa-IR", {
+    //     hour: "2-digit",
+    //     minute: "2-digit",
+    //   })
+    // );
+  } catch (err) {
+    console.error("Error creating booking:", err);
+    res.status(500).json({ error: "Booking creation failed" });
+  }
+};
+
+exports.getAllBookings = async (req, res) => {
+  try {
+    const bookings = await Booking.find({ userId: req.userId }).sort({
+      date: 1,
+    });
+    res.json(bookings);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch bookings" });
+  }
+};
+
+exports.getBookingsByDate = async (req, res) => {
+  try {
+    const { date } = req.query;
+    if (!date) return res.status(400).json({ error: "Date is required" });
+
+    const start = new Date(date);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+
+    const bookings = await Booking.find({
+      date: { $gte: start, $lt: end },
+    }).sort({ date: 1 });
+
+    res.json(bookings);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch bookings for date" });
+  }
+};
+
+exports.deleteBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await Booking.findByIdAndDelete(id);
+    if (!deleted) return res.status(404).json({ error: "Booking not found" });
+    res.json({ message: "Booking deleted" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete booking" });
+  }
+};
+
+exports.updateBookingStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!["pending", "confirmed", "cancelled"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
+    const updated = await Booking.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+
+    if (!updated) return res.status(404).json({ error: "Booking not found" });
+
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update status" });
+  }
+};
