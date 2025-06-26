@@ -6,6 +6,7 @@ const cors = require("cors");
 const panelRoutes = require("./routes/panelRoutes");
 const serviceRoutes = require("./routes/serviceRoutes");
 const reportRoutes = require("./routes/reportRoutes");
+const workingHoursRoutes = require("./routes/workingHoursRoutes");
 
 dotenv.config();
 
@@ -18,5 +19,6 @@ app.use("/api/auth", authRoutes);
 app.use("/api/panel", panelRoutes);
 app.use("/api/services", serviceRoutes);
 app.use("/api/report", reportRoutes);
+app.use("/working-hours", workingHoursRoutes);
 
 module.exports = app;

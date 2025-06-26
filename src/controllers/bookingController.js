@@ -1,22 +1,31 @@
 const Booking = require("../models/Booking");
 const User = require("../models/User");
+const Service = require("../models/Service");
 // const sendSMS = require("../utils/sms");
 
 exports.createBooking = async (req, res) => {
   try {
-    const { name, phone, service, date, duration = 60 } = req.body;
+    const { name, phone, serviceId, date } = req.body;
+    
+    // پیدا کردن سرویس از روی serviceId
+    const service = await Service.findById(serviceId);
+    if (!service) {
+      return res.status(404).json({ error: "Service not found" });
+    }
+
     const startDate = new Date(date);
-    const endDate = new Date(startDate.getTime() + duration * 60000); // مدت زمان به میلی‌ثانیه
+    const endDate = new Date(startDate.getTime() + service.duration * 60000); // استفاده از duration سرویس
 
     // جستجوی نوبت‌هایی که با بازه جدید تداخل دارند
     const conflict = await Booking.findOne({
-      date: { $lt: endDate }, // شروع نوبت‌های قبلی قبل از پایان نوبت جدید
+      userId: service.userId, // چک تداخل برای همان کاربر صاحب سرویس
+      date: { $lt: endDate },
       $expr: {
         $gt: [
           { $add: ["$date", { $multiply: ["$duration", 60000] }] },
           startDate,
         ],
-      }, // پایان نوبت قبلی بعد از شروع نوبت جدید
+      },
     });
 
     if (conflict) {
@@ -24,13 +33,14 @@ exports.createBooking = async (req, res) => {
     }
 
     const booking = await Booking.create({
-      userId: req.userId || null, // اگه لاگین بود
+      userId: service.userId, // استفاده از userId سرویس
       name,
       phone,
-      service,
+      service: service.name, // استفاده از نام سرویس
       date: startDate,
-      duration,
+      duration: service.duration, // استفاده از duration سرویس
     });
+    
     res.status(201).json(booking);
     // await sendSMS(
     //   phone,
@@ -68,12 +78,13 @@ exports.getBookingsByDate = async (req, res) => {
     end.setDate(end.getDate() + 1);
 
     const bookings = await Booking.find({
-      date: { $gte: start, $lt: end },
+      userId: req.userId,
+      date: { $gte: start, $lt: end }
     }).sort({ date: 1 });
-
+    
     res.json(bookings);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch bookings for date" });
+    res.status(500).json({ error: "Failed to fetch bookings" });
   }
 };
 

@@ -11,12 +11,12 @@ router.post("/register", async (req, res) => {
 
     // چک username تکراری
     if (await User.findOne({ username })) {
-      return res.status(400).json({ error: "Username already taken" });
+      return res.status(400).json({ error: "نام کاربری از قبل  وجود دارد" });
     }
 
     // چک ایمیل تکراری
     if (await User.findOne({ email })) {
-      return res.status(400).json({ error: "Email already registered" });
+      return res.status(400).json({ error: "ایمیل از قبل  وجود دارد" });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -30,22 +30,27 @@ router.post("/register", async (req, res) => {
       businessName,
     });
 
-    res.status(201).json({ message: "User created successfully" });
+    res.status(201).json({ message: "ساخت کاربر با موفقیت انجام شد" });
   } catch (err) {
-    res.status(500).json({ error: "Registration failed" });
+    res.status(500).json({ error: "ثبت نام کاربر با خطا مواجه شد" });
   }
 });
-
 
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
 
-    if (!user) return res.status(401).json({ error: "Invalid credentials" });
+    if (!user)
+      return res
+        .status(401)
+        .json({ error: "نام کاربری یا رمز عبور اشتباه است" });
 
     const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) return res.status(401).json({ error: "Invalid credentials" });
+    if (!valid)
+      return res
+        .status(401)
+        .json({ error: "نام کاربری یا رمز عبور اشتباه است" });
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
       expiresIn: "1d",
@@ -60,7 +65,7 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ error: "Login failed" });
+    res.status(500).json({ error: "عملیات ورود با خطا مواجه شد" });
   }
 });
 
