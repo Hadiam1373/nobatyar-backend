@@ -19,6 +19,6 @@ app.use("/api/auth", authRoutes);
 app.use("/api/panel", panelRoutes);
 app.use("/api/services", serviceRoutes);
 app.use("/api/report", reportRoutes);
-app.use("/working-hours", workingHoursRoutes);
+app.use("/api/working-hours", workingHoursRoutes);
 
 module.exports = app;

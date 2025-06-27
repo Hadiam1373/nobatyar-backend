@@ -12,6 +12,13 @@ router.post("/:username", async (req, res) => {
 
     const { workingDays, slotDuration = 30 } = req.body;
 
+    console.log("Received data:", { workingDays, slotDuration }); // Debug log
+
+    // اعتبارسنجی داده‌های ورودی
+    if (!workingDays || !Array.isArray(workingDays)) {
+      return res.status(400).json({ error: "workingDays must be an array" });
+    }
+
     const workingHours = await WorkingHours.findOneAndUpdate(
       { userId: user._id },
       { 
@@ -19,13 +26,22 @@ router.post("/:username", async (req, res) => {
         slotDuration,
         updatedAt: new Date()
       },
-      { upsert: true, new: true }
+      { 
+        upsert: true, 
+        new: true,
+        runValidators: true // اجرای validation
+      }
     );
+
+    console.log("Saved working hours:", workingHours); // Debug log
 
     res.json(workingHours);
   } catch (err) {
     console.error("Error setting working hours:", err);
-    res.status(500).json({ error: "Failed to set working hours" });
+    res.status(500).json({ 
+      error: "Failed to set working hours",
+      details: err.message 
+    });
   }
 });
 
@@ -36,14 +52,19 @@ router.get("/:username", async (req, res) => {
     const user = await User.findOne({ username });
     if (!user) return res.status(404).json({ error: "User not found" });
 
+    console.log("Looking for userId:", user._id); // Debug log
+
     const workingHours = await WorkingHours.findOne({ userId: user._id });
     
+    console.log("Found working hours:", workingHours); // Debug log
+
     if (!workingHours) {
       return res.status(404).json({ error: "Working hours not set" });
     }
 
     res.json(workingHours);
   } catch (err) {
+    console.error("Error fetching working hours:", err);
     res.status(500).json({ error: "Failed to fetch working hours" });
   }
 });
