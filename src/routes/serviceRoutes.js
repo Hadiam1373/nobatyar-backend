@@ -39,4 +39,22 @@ router.get("/:username", async (req, res) => {
   }
 });
 
+router.delete("/:username/:serviceId", async (req, res) => {
+  try {
+    const { username, serviceId } = req.params;
+    const user = await User.findOne({ username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const service = await Service.findOneAndDelete({
+      _id: serviceId,
+      userId: user._id,
+    });
+    if (!service) return res.status(404).json({ error: "Service not found" });
+
+    res.json({ message: "Service deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete service" });
+  }
+});
+
 module.exports = router;
