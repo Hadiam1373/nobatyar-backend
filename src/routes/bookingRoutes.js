@@ -3,6 +3,7 @@ const Booking = require("../models/Booking");
 const User = require("../models/User");
 const router = express.Router();
 const Service = require("../models/Service");
+const sendSMS = require("../utils/sms");
 
 // ایجاد نوبت جدید - نسخه ساده‌تر
 router.post("/:username", async (req, res) => {
@@ -17,30 +18,32 @@ router.post("/:username", async (req, res) => {
     if (!service) return res.status(404).json({ error: "Service not found" });
 
     // ترکیب تاریخ و ساعت
-    const [hours, minutes] = time.split(':');
+    const [hours, minutes] = time.split(":");
     const startDate = new Date(date);
     startDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-    
+
     const endDate = new Date(startDate.getTime() + service.duration * 60000);
 
     // دریافت تمام نوبت‌های آن روز
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
     const existingBookings = await Booking.find({
       userId: user._id,
       date: { $gte: startOfDay, $lte: endOfDay },
-      status: { $ne: "cancelled" }
+      status: { $ne: "cancelled" },
     });
 
     // چک تداخل با روش ساده
-    const hasConflict = existingBookings.some(booking => {
+    const hasConflict = existingBookings.some((booking) => {
       const bookingStart = new Date(booking.date);
-      const bookingEnd = new Date(bookingStart.getTime() + booking.duration * 60000);
-      
+      const bookingEnd = new Date(
+        bookingStart.getTime() + booking.duration * 60000
+      );
+
       // بررسی تداخل: دو بازه زمانی تداخل دارند اگر:
       // شروع نوبت جدید قبل از پایان نوبت موجود باشد و
       // پایان نوبت جدید بعد از شروع نوبت موجود باشد
@@ -48,25 +51,47 @@ router.post("/:username", async (req, res) => {
     });
 
     if (hasConflict) {
-      const conflictingBooking = existingBookings.find(booking => {
+      const conflictingBooking = existingBookings.find((booking) => {
         const bookingStart = new Date(booking.date);
-        const bookingEnd = new Date(bookingStart.getTime() + booking.duration * 60000);
+        const bookingEnd = new Date(
+          bookingStart.getTime() + booking.duration * 60000
+        );
         return startDate < bookingEnd && endDate > bookingStart;
       });
 
       const conflictStart = new Date(conflictingBooking.date);
-      const conflictEnd = new Date(conflictStart.getTime() + conflictingBooking.duration * 60000);
-      
-      return res.status(409).json({ 
+      const conflictEnd = new Date(
+        conflictStart.getTime() + conflictingBooking.duration * 60000
+      );
+
+      return res.status(409).json({
         error: "این زمان قبلاً رزرو شده است.",
         details: {
-          requestedTime: `${time} - ${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`,
+          requestedTime: `${time} - ${endDate
+            .getHours()
+            .toString()
+            .padStart(2, "0")}:${endDate
+            .getMinutes()
+            .toString()
+            .padStart(2, "0")}`,
           conflictingBooking: {
             name: conflictingBooking.name,
             service: conflictingBooking.service,
-            time: `${conflictStart.getHours().toString().padStart(2, '0')}:${conflictStart.getMinutes().toString().padStart(2, '0')} - ${conflictEnd.getHours().toString().padStart(2, '0')}:${conflictEnd.getMinutes().toString().padStart(2, '0')}`
-          }
-        }
+            time: `${conflictStart
+              .getHours()
+              .toString()
+              .padStart(2, "0")}:${conflictStart
+              .getMinutes()
+              .toString()
+              .padStart(2, "0")} - ${conflictEnd
+              .getHours()
+              .toString()
+              .padStart(2, "0")}:${conflictEnd
+              .getMinutes()
+              .toString()
+              .padStart(2, "0")}`,
+          },
+        },
       });
     }
 
@@ -111,19 +136,19 @@ router.get("/:username", async (req, res) => {
     const bookings = await Booking.find(query).sort({ date: 1 });
 
     // تبدیل bookings برای نمایش ساعت به جای duration
-    const bookingsWithTime = bookings.map(booking => {
+    const bookingsWithTime = bookings.map((booking) => {
       const bookingDate = new Date(booking.date);
-      const hours = bookingDate.getHours().toString().padStart(2, '0');
-      const minutes = bookingDate.getMinutes().toString().padStart(2, '0');
+      const hours = bookingDate.getHours().toString().padStart(2, "0");
+      const minutes = bookingDate.getMinutes().toString().padStart(2, "0");
       const time = `${hours}:${minutes}`;
-      
+
       // ایجاد object جدید بدون duration و با time
       const bookingObj = booking.toObject();
       delete bookingObj.duration;
-      
+
       return {
         ...bookingObj,
-        time: time
+        time: time,
       };
     });
 
@@ -170,23 +195,26 @@ router.put("/:username/:bookingId", async (req, res) => {
     let serviceName = req.body.service; // نام سرویس از body
 
     if (serviceId) {
-      const service = await Service.findOne({ _id: serviceId, userId: user._id });
+      const service = await Service.findOne({
+        _id: serviceId,
+        userId: user._id,
+      });
       if (!service) return res.status(404).json({ error: "Service not found" });
       duration = service.duration;
       serviceName = service.name;
     }
 
     // ترکیب تاریخ و ساعت
-    const [hours, minutes] = time.split(':');
+    const [hours, minutes] = time.split(":");
     const startDate = new Date(date);
     startDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-    
+
     const endDate = new Date(startDate.getTime() + duration * 60000);
 
     // دریافت نوبت‌های آن روز (به جز نوبت فعلی)
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
@@ -194,14 +222,16 @@ router.put("/:username/:bookingId", async (req, res) => {
       _id: { $ne: bookingId }, // نوبت خودش حساب نشود
       userId: user._id,
       date: { $gte: startOfDay, $lte: endOfDay },
-      status: { $ne: "cancelled" }
+      status: { $ne: "cancelled" },
     });
 
     // چک تداخل
-    const hasConflict = existingBookings.some(booking => {
+    const hasConflict = existingBookings.some((booking) => {
       const bookingStart = new Date(booking.date);
-      const bookingEnd = new Date(bookingStart.getTime() + booking.duration * 60000);
-      
+      const bookingEnd = new Date(
+        bookingStart.getTime() + booking.duration * 60000
+      );
+
       return startDate < bookingEnd && endDate > bookingStart;
     });
 
@@ -251,31 +281,43 @@ router.get("/:username/available-slots", async (req, res) => {
     // دریافت ساعات کاری کاربر
     const workingHours = await WorkingHours.findOne({ userId: user._id });
     if (!workingHours) {
-      return res.status(400).json({ error: "Working hours not set. Please set your working hours first." });
+      return res.status(400).json({
+        error: "Working hours not set. Please set your working hours first.",
+      });
     }
 
     // تشخیص روز هفته
     const targetDate = new Date(date);
-    const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    const dayNames = [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+    ];
     const dayName = dayNames[targetDate.getDay()];
 
     // پیدا کردن تنظیمات روز مورد نظر
-    const daySettings = workingHours.workingDays.find(d => d.day === dayName && d.isActive);
-    
+    const daySettings = workingHours.workingDays.find(
+      (d) => d.day === dayName && d.isActive
+    );
+
     if (!daySettings) {
       return res.json({
         date,
         serviceName: service.name,
         serviceDuration: service.duration,
         availableSlots: [],
-        message: "This day is not available for booking"
+        message: "This day is not available for booking",
       });
     }
 
     // تاریخ شروع و پایان روز
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
@@ -283,8 +325,8 @@ router.get("/:username/available-slots", async (req, res) => {
     const bookedSlots = await Booking.find({
       userId: user._id,
       date: { $gte: startOfDay, $lte: endOfDay },
-      status: { $ne: "cancelled" }
-    }).select('date duration');
+      status: { $ne: "cancelled" },
+    }).select("date duration");
 
     // تولید ساعات کاری بر اساس تنظیمات کاربر
     const workingSlots = generateWorkingSlotsForDay(
@@ -293,19 +335,21 @@ router.get("/:username/available-slots", async (req, res) => {
       daySettings.breakTimes,
       workingHours.slotDuration
     );
-    
+
     // فیلتر ساعات خالی
-    const availableSlots = workingSlots.filter(timeSlot => {
-      const [hours, minutes] = timeSlot.split(':');
+    const availableSlots = workingSlots.filter((timeSlot) => {
+      const [hours, minutes] = timeSlot.split(":");
       const slotStart = new Date(date);
       slotStart.setHours(parseInt(hours), parseInt(minutes), 0, 0);
       const slotEnd = new Date(slotStart.getTime() + service.duration * 60000);
-      
-      return !bookedSlots.some(booking => {
+
+      return !bookedSlots.some((booking) => {
         const bookingStart = new Date(booking.date);
-        const bookingEnd = new Date(bookingStart.getTime() + booking.duration * 60000);
-        
-        return (slotStart < bookingEnd && slotEnd > bookingStart);
+        const bookingEnd = new Date(
+          bookingStart.getTime() + booking.duration * 60000
+        );
+
+        return slotStart < bookingEnd && slotEnd > bookingStart;
       });
     });
 
@@ -317,11 +361,10 @@ router.get("/:username/available-slots", async (req, res) => {
       workingHours: {
         startTime: daySettings.startTime,
         endTime: daySettings.endTime,
-        breakTimes: daySettings.breakTimes
+        breakTimes: daySettings.breakTimes,
       },
-      availableSlots
+      availableSlots,
     });
-
   } catch (err) {
     console.error("Error fetching available slots:", err);
     res.status(500).json({ error: "Failed to fetch available slots" });
@@ -329,36 +372,101 @@ router.get("/:username/available-slots", async (req, res) => {
 });
 
 // تابع تولید ساعات کاری با در نظر گیری استراحت
-function generateWorkingSlotsForDay(startTime, endTime, breakTimes, slotDuration) {
+function generateWorkingSlotsForDay(
+  startTime,
+  endTime,
+  breakTimes,
+  slotDuration
+) {
   const slots = [];
-  const [startHour, startMin] = startTime.split(':').map(Number);
-  const [endHour, endMin] = endTime.split(':').map(Number);
-  
+  const [startHour, startMin] = startTime.split(":").map(Number);
+  const [endHour, endMin] = endTime.split(":").map(Number);
+
   const startMinutes = startHour * 60 + startMin;
   const endMinutes = endHour * 60 + endMin;
-  
-  for (let minutes = startMinutes; minutes < endMinutes; minutes += slotDuration) {
+
+  for (
+    let minutes = startMinutes;
+    minutes < endMinutes;
+    minutes += slotDuration
+  ) {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    const timeString = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
-    
+    const timeString = `${hours.toString().padStart(2, "0")}:${mins
+      .toString()
+      .padStart(2, "0")}`;
+
     // چک کردن اینکه در زمان استراحت نباشد
-    const isInBreakTime = breakTimes.some(breakTime => {
-      const [breakStartHour, breakStartMin] = breakTime.startTime.split(':').map(Number);
-      const [breakEndHour, breakEndMin] = breakTime.endTime.split(':').map(Number);
-      
+    const isInBreakTime = breakTimes.some((breakTime) => {
+      const [breakStartHour, breakStartMin] = breakTime.startTime
+        .split(":")
+        .map(Number);
+      const [breakEndHour, breakEndMin] = breakTime.endTime
+        .split(":")
+        .map(Number);
+
       const breakStartMinutes = breakStartHour * 60 + breakStartMin;
       const breakEndMinutes = breakEndHour * 60 + breakEndMin;
-      
+
       return minutes >= breakStartMinutes && minutes < breakEndMinutes;
     });
-    
+
     if (!isInBreakTime) {
       slots.push(timeString);
     }
   }
-  
+
   return slots;
 }
+
+// تایید یا رد نوبت توسط ادمین
+router.post("/:username/:bookingId/decision", async (req, res) => {
+  try {
+    const { username, bookingId } = req.params;
+    const { decision } = req.body; // 'accept' یا 'reject'
+
+    if (!["accept", "reject"].includes(decision)) {
+      return res.status(400).json({ error: "Invalid decision" });
+    }
+
+    const user = await User.findOne({ username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const booking = await Booking.findOne({ _id: bookingId, userId: user._id });
+    if (!booking) return res.status(404).json({ error: "Booking not found" });
+
+    if (decision === "accept") {
+      booking.status = "confirmed";
+      await booking.save();
+      // ارسال پیامک تایید
+      await sendSMS(
+        booking.phone,
+        booking.name,
+        booking.date.toLocaleDateString("fa-IR"),
+        booking.date.toLocaleTimeString("fa-IR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
+      return res.json({ message: "Booking accepted and SMS sent." });
+    } else {
+      // ارسال پیامک رد
+      await sendSMS(
+        booking.phone,
+        booking.name,
+        booking.date.toLocaleDateString("fa-IR"),
+        booking.date.toLocaleTimeString("fa-IR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
+      await Booking.deleteOne({ _id: bookingId });
+      return res.json({ message: "Booking rejected, deleted and SMS sent." });
+    }
+  } catch (err) {
+    console.error("Error in booking decision:", err);
+    res.status(500).json({ error: "Failed to process decision" });
+  }
+});
 
 module.exports = router;
