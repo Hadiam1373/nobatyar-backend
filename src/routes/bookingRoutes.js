@@ -4,6 +4,9 @@ const User = require("../models/User");
 const router = express.Router();
 const Service = require("../models/Service");
 const sendSMS = require("../utils/sms");
+const availabilityController = require("../controllers/availabilityController");
+
+router.get("/availability/:userId/:date/:serviceId?", availabilityController.getAvailability);
 
 // ایجاد نوبت جدید - نسخه ساده‌تر
 router.post("/:username", async (req, res) => {
@@ -468,5 +471,6 @@ router.post("/:username/:bookingId/decision", async (req, res) => {
     res.status(500).json({ error: "Failed to process decision" });
   }
 });
+
 
 module.exports = router;
