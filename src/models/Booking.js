@@ -18,4 +18,5 @@ const bookingSchema = new mongoose.Schema({
   },  
   createdAt: { type: Date, default: Date.now },
 });
+bookingSchema.index({ service: 1, date: 1 }, { unique: true });
 module.exports = mongoose.model("Booking", bookingSchema);

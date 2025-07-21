@@ -19,6 +19,15 @@ router.post("/:username", async (req, res) => {
       return res.status(400).json({ error: "workingDays must be an array" });
     }
 
+    // اطمینان از آرایه بودن breakTimes برای هر روز
+    if (Array.isArray(workingDays)) {
+      workingDays.forEach(day => {
+        if (!Array.isArray(day.breakTimes)) {
+          day.breakTimes = [];
+        }
+      });
+    }
+
     const workingHours = await WorkingHours.findOneAndUpdate(
       { userId: user._id },
       { 
