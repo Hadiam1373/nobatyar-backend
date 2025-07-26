@@ -10,15 +10,18 @@ router.post("/:username", async (req, res) => {
     const user = await User.findOne({ username });
     if (!user) return res.status(404).json({ error: "کاربر پیدا نشد" });
 
-    const { name, duration, price, city, neighborhood } = req.body;
+    const { name, duration, price, address, phone, city, neighborhood, allNeighborhoods } = req.body;
 
     const service = await Service.create({
       userId: user._id,
       name,
       duration,
       price,
-      city,
-      neighborhood,
+      address,
+      phone,
+      city: city || undefined,
+      neighborhood: neighborhood || undefined,
+      allNeighborhoods: !!allNeighborhoods,
     });
 
     res.status(201).json(service);
@@ -37,7 +40,10 @@ router.get("/search/location", async (req, res) => {
       query.city = { $regex: city, $options: 'i' }; // جستجوی case-insensitive
     }
     if (neighborhood) {
-      query.neighborhood = { $regex: neighborhood, $options: 'i' };
+      query.$or = [
+        { neighborhood: { $regex: neighborhood, $options: 'i' } },
+        { allNeighborhoods: true }
+      ];
     }
 
     const services = await Service.find(query)
