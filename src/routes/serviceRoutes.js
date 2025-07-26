@@ -8,7 +8,7 @@ router.post("/:username", async (req, res) => {
   try {
     const { username } = req.params;
     const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) return res.status(404).json({ error: "کاربر پیدا نشد" });
 
     const { name, duration, price, city, neighborhood } = req.body;
 
@@ -23,7 +23,7 @@ router.post("/:username", async (req, res) => {
 
     res.status(201).json(service);
   } catch (err) {
-    res.status(500).json({ error: "Failed to create service" });
+    res.status(500).json({ error: "ایجاد سرویس با خطا مواجه شد" });
   }
 });
 
@@ -46,7 +46,7 @@ router.get("/search/location", async (req, res) => {
 
     res.json(services);
   } catch (err) {
-    res.status(500).json({ error: "Failed to search services" });
+    res.status(500).json({ error: "جستجوی سرویس‌ها با خطا مواجه شد" });
   }
 });
 
@@ -56,7 +56,7 @@ router.get("/cities/list", async (req, res) => {
     const cities = await Service.distinct('city');
     res.json(cities);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch cities" });
+    res.status(500).json({ error: "دریافت شهرها با خطا مواجه شد" });
   }
 });
 
@@ -69,7 +69,7 @@ router.get("/test/all", async (req, res) => {
       services: services
     });
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch all services" });
+    res.status(500).json({ error: "دریافت همه سرویس‌ها با خطا مواجه شد" });
   }
 });
 
@@ -80,7 +80,7 @@ router.get("/neighborhoods/:city", async (req, res) => {
     const neighborhoods = await Service.distinct('neighborhood', { city: { $regex: city, $options: 'i' } });
     res.json(neighborhoods);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch neighborhoods" });
+    res.status(500).json({ error: "دریافت محله‌ها با خطا مواجه شد" });
   }
 });
 
@@ -89,12 +89,12 @@ router.get("/:username", async (req, res) => {
   try {
     const { username } = req.params;
     const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) return res.status(404).json({ error: "کاربر پیدا نشد" });
 
     const services = await Service.find({ userId: user._id });
     res.json(services);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch services" });
+    res.status(500).json({ error: "دریافت سرویس‌ها با خطا مواجه شد" });
   }
 });
 
@@ -102,17 +102,17 @@ router.delete("/:username/:serviceId", async (req, res) => {
   try {
     const { username, serviceId } = req.params;
     const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) return res.status(404).json({ error: "کاربر پیدا نشد" });
 
     const service = await Service.findOneAndDelete({
       _id: serviceId,
       userId: user._id,
     });
-    if (!service) return res.status(404).json({ error: "Service not found" });
+    if (!service) return res.status(404).json({ error: "سرویس پیدا نشد" });
 
     res.json({ message: "Service deleted successfully" });
   } catch (err) {
-    res.status(500).json({ error: "Failed to delete service" });
+    res.status(500).json({ error: "حذف سرویس با خطا مواجه شد" });
   }
 });
 

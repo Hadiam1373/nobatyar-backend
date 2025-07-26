@@ -7,7 +7,7 @@ router.get("/:username", async (req, res) => {
   try {
     const { username } = req.params;
     const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) return res.status(404).json({ error: "کاربر پیدا نشد" });
 
     const bookings = await Booking.find({ userId: user._id }).sort({ date: 1 });
 
@@ -16,7 +16,7 @@ router.get("/:username", async (req, res) => {
       bookings,
     });
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch panel data" });
+    res.status(500).json({ error: "دریافت اطلاعات پنل با خطا مواجه شد" });
   }
 });
 

@@ -21,17 +21,17 @@ function generateSlots(start, end, slotDuration) {
 exports.getAvailability = async (req, res) => {
   try {
     const { userId, date, serviceId } = req.params;
-    if (!userId) return res.status(400).json({ error: "userId is required" });
-    if (!date) return res.status(400).json({ error: "date is required" });
-    if (!serviceId) return res.status(400).json({ error: "serviceId is required" });
+    if (!userId) return res.status(400).json({ error: "شناسه کاربر الزامی است" });
+    if (!date) return res.status(400).json({ error: "تاریخ الزامی است" });
+    if (!serviceId) return res.status(400).json({ error: "شناسه سرویس الزامی است" });
 
     const objectUserId = new mongoose.Types.ObjectId(userId);
     const workingHours = await WorkingHours.findOne({ userId: objectUserId });
-    if (!workingHours) return res.status(404).json({ error: "Working hours not found" });
+    if (!workingHours) return res.status(404).json({ error: "ساعات کاری پیدا نشد" });
 
     // دریافت مدت زمان سرویس
     const service = await Service.findOne({ _id: serviceId, userId: objectUserId });
-    if (!service) return res.status(404).json({ error: "Service not found" });
+    if (!service) return res.status(404).json({ error: "سرویس پیدا نشد" });
     const serviceDuration = Number(service.duration) || 60;
 
     let disabledHours = [];
@@ -100,6 +100,6 @@ exports.getAvailability = async (req, res) => {
     });
   } catch (err) {
     console.error("Error in getAvailability:", err);
-    res.status(500).json({ error: "Failed to get availability" });
+    res.status(500).json({ error: "دریافت زمان‌های آزاد با خطا مواجه شد" });
   }
 };

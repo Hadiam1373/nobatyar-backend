@@ -29,12 +29,12 @@ router.post(
     try {
       const { username } = req.params;
       const user = await User.findOne({ username });
-      if (!user) return res.status(404).json({ error: "User not found" });
+      if (!user) return res.status(404).json({ error: "کاربر پیدا نشد" });
 
       const { name, phone, serviceId, date, time } = req.body;
 
       const service = await Service.findOne({ _id: serviceId, userId: user._id });
-      if (!service) return res.status(404).json({ error: "Service not found" });
+      if (!service) return res.status(404).json({ error: "سرویس پیدا نشد" });
 
       // اگر کاربر یا سرویس پیدا نشد:
       if (!user || !service) {
@@ -137,7 +137,7 @@ router.post(
         });
       }
       console.error("Error creating booking:", err);
-      res.status(500).json({ error: "Booking creation failed" });
+      res.status(500).json({ error: "ایجاد نوبت با خطا مواجه شد" });
     }
   }
 );
@@ -148,7 +148,7 @@ router.get("/:username", authMiddleware, async (req, res) => {
     const { date } = req.query;
 
     const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) return res.status(404).json({ error: "کاربر پیدا نشد" });
 
     let query = { userId: user._id };
 
@@ -185,7 +185,7 @@ router.get("/:username", authMiddleware, async (req, res) => {
 
     res.json(bookingsWithTime);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch bookings" });
+    res.status(500).json({ error: "دریافت نوبت‌ها با خطا مواجه شد" });
   }
 });
 
@@ -194,7 +194,7 @@ router.delete("/:username/:bookingId", authMiddleware, async (req, res) => {
     const { username, bookingId } = req.params;
 
     const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) return res.status(404).json({ error: "کاربر پیدا نشد" });
 
     const booking = await Booking.findOneAndDelete({
       _id: bookingId,
@@ -204,12 +204,12 @@ router.delete("/:username/:bookingId", authMiddleware, async (req, res) => {
     if (!booking) {
       return res
         .status(404)
-        .json({ error: "Booking not found or unauthorized" });
+        .json({ error: "نوبت پیدا نشد یا مجاز نیستید" });
     }
 
-    res.json({ message: "Booking deleted successfully" });
+    res.json({ message: "نوبت با موفقیت حذف شد" });
   } catch (err) {
-    res.status(500).json({ error: "Failed to delete booking" });
+    res.status(500).json({ error: "دریافت ساعات خالی با خطا مواجه شد" });
   }
 });
 
@@ -219,7 +219,7 @@ router.put("/:username/:bookingId", authMiddleware, async (req, res) => {
     const { name, phone, serviceId, date, time } = req.body;
 
     const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) return res.status(404).json({ error: "کاربر پیدا نشد" });
 
     // اگر serviceId ارسال شده، service را پیدا کن
     let duration = 60; // مقدار پیش‌فرض
@@ -230,7 +230,7 @@ router.put("/:username/:bookingId", authMiddleware, async (req, res) => {
         _id: serviceId,
         userId: user._id,
       });
-      if (!service) return res.status(404).json({ error: "Service not found" });
+      if (!service) return res.status(404).json({ error: "سرویس پیدا نشد" });
       duration = service.duration;
       serviceName = service.name;
     }
@@ -282,12 +282,12 @@ router.put("/:username/:bookingId", authMiddleware, async (req, res) => {
       { new: true }
     );
 
-    if (!updated) return res.status(404).json({ error: "Booking not found" });
+    if (!updated) return res.status(404).json({ error: "نوبت پیدا نشد" });
 
     res.json(updated);
   } catch (err) {
     console.error("Error updating booking:", err);
-    res.status(500).json({ error: "Failed to update booking" });
+    res.status(500).json({ error: "ویرایش نوبت با خطا مواجه شد" });
   }
 });
 
@@ -300,20 +300,20 @@ router.get("/:username/available-slots", authMiddleware, async (req, res) => {
     const { date, serviceId } = req.query;
 
     if (!date || !serviceId) {
-      return res.status(400).json({ error: "Date and serviceId are required" });
+      return res.status(400).json({ error: "تاریخ و شناسه سرویس الزامی است" });
     }
 
     const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) return res.status(404).json({ error: "کاربر پیدا نشد" });
 
     const service = await Service.findOne({ _id: serviceId, userId: user._id });
-    if (!service) return res.status(404).json({ error: "Service not found" });
+    if (!service) return res.status(404).json({ error: "سرویس پیدا نشد" });
 
     // دریافت ساعات کاری کاربر
     const workingHours = await WorkingHours.findOne({ userId: user._id });
     if (!workingHours) {
       return res.status(400).json({
-        error: "Working hours not set. Please set your working hours first.",
+        error: "ساعات کاری تنظیم نشده است. لطفاً ابتدا ساعات کاری خود را تنظیم کنید.",
       });
     }
 
@@ -341,7 +341,7 @@ router.get("/:username/available-slots", authMiddleware, async (req, res) => {
         serviceName: service.name,
         serviceDuration: service.duration,
         availableSlots: [],
-        message: "This day is not available for booking",
+        message: "این روز برای رزرو فعال نیست.",
       });
     }
 
@@ -398,7 +398,7 @@ router.get("/:username/available-slots", authMiddleware, async (req, res) => {
     });
   } catch (err) {
     console.error("Error fetching available slots:", err);
-    res.status(500).json({ error: "Failed to fetch available slots" });
+    res.status(500).json({ error: "دریافت ساعات خالی با خطا مواجه شد" });
   }
 });
 
@@ -457,14 +457,14 @@ router.post("/:username/:bookingId/decision", authMiddleware, async (req, res) =
     const { decision } = req.body; // 'accept' یا 'reject'
 
     if (!["accept", "reject"].includes(decision)) {
-      return res.status(400).json({ error: "Invalid decision" });
+      return res.status(400).json({ error: "تصمیم نامعتبر است" });
     }
 
     const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) return res.status(404).json({ error: "کاربر پیدا نشد" });
 
     const booking = await Booking.findOne({ _id: bookingId, userId: user._id });
-    if (!booking) return res.status(404).json({ error: "Booking not found" });
+    if (!booking) return res.status(404).json({ error: "نوبت پیدا نشد" });
 
     if (decision === "accept") {
       booking.status = "confirmed";
@@ -479,7 +479,7 @@ router.post("/:username/:bookingId/decision", authMiddleware, async (req, res) =
           minute: "2-digit",
         })
       );
-      return res.json({ message: "Booking accepted and SMS sent." });
+      return res.json({ message: "نوبت تایید شد و پیامک ارسال شد." });
     } else {
       // ارسال پیامک رد
       await sendSMS(
@@ -492,11 +492,11 @@ router.post("/:username/:bookingId/decision", authMiddleware, async (req, res) =
         })
       );
       await Booking.deleteOne({ _id: bookingId });
-      return res.json({ message: "Booking rejected, deleted and SMS sent." });
+      return res.json({ message: "نوبت رد شد، حذف شد و پیامک ارسال شد." });
     }
   } catch (err) {
     console.error("Error in booking decision:", err);
-    res.status(500).json({ error: "Failed to process decision" });
+    res.status(500).json({ error: "پردازش تصمیم با خطا مواجه شد" });
   }
 });
 

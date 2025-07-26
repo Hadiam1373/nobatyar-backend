@@ -6,7 +6,7 @@ exports.getUserSummary = async (req, res) => {
   try {
     const { username } = req.params;
     const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) return res.status(404).json({ error: "کاربر پیدا نشد" });
 
     const totalBookings = await Booking.countDocuments({ userId: user._id });
 
@@ -101,6 +101,6 @@ exports.getUserSummary = async (req, res) => {
       monthlyIncome,
     });
   } catch (err) {
-    res.status(500).json({ error: "Failed to generate report" });
+    res.status(500).json({ error: "گزارش‌گیری با خطا مواجه شد" });
   }
 };

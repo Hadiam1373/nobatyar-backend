@@ -10,7 +10,7 @@ exports.createBooking = async (req, res) => {
     // پیدا کردن سرویس از روی serviceId
     const service = await Service.findById(serviceId);
     if (!service) {
-      return res.status(404).json({ error: "Service not found" });
+      return res.status(404).json({ error: "سرویس پیدا نشد" });
     }
 
     const startDate = new Date(date);
@@ -29,7 +29,7 @@ exports.createBooking = async (req, res) => {
     });
 
     if (conflict) {
-      return res.status(409).json({ error: "Time slot is already booked." });
+      return res.status(409).json({ error: "این زمان قبلاً رزرو شده است." });
     }
 
     const booking = await Booking.create({
@@ -53,7 +53,7 @@ exports.createBooking = async (req, res) => {
     // );
   } catch (err) {
     console.error("Error creating booking:", err);
-    res.status(500).json({ error: "Booking creation failed" });
+    res.status(500).json({ error: "ایجاد نوبت با خطا مواجه شد" });
   }
 };
 
@@ -64,14 +64,14 @@ exports.getAllBookings = async (req, res) => {
     });
     res.json(bookings);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch bookings" });
+    res.status(500).json({ error: "دریافت نوبت‌ها با خطا مواجه شد" });
   }
 };
 
 exports.getBookingsByDate = async (req, res) => {
   try {
     const { date } = req.query;
-    if (!date) return res.status(400).json({ error: "Date is required" });
+    if (!date) return res.status(400).json({ error: "تاریخ الزامی است" });
 
     const start = new Date(date);
     const end = new Date(start);
@@ -84,7 +84,7 @@ exports.getBookingsByDate = async (req, res) => {
     
     res.json(bookings);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch bookings" });
+    res.status(500).json({ error: "دریافت نوبت‌ها با خطا مواجه شد" });
   }
 };
 
@@ -92,10 +92,10 @@ exports.deleteBooking = async (req, res) => {
   try {
     const { id } = req.params;
     const deleted = await Booking.findByIdAndDelete(id);
-    if (!deleted) return res.status(404).json({ error: "Booking not found" });
+    if (!deleted) return res.status(404).json({ error: "نوبت پیدا نشد" });
     res.json({ message: "Booking deleted" });
   } catch (err) {
-    res.status(500).json({ error: "Failed to delete booking" });
+    res.status(500).json({ error: "حذف نوبت با خطا مواجه شد" });
   }
 };
 
@@ -105,7 +105,7 @@ exports.updateBookingStatus = async (req, res) => {
     const { status } = req.body;
 
     if (!["pending", "confirmed", "cancelled"].includes(status)) {
-      return res.status(400).json({ error: "Invalid status" });
+      return res.status(400).json({ error: "وضعیت نامعتبر است" });
     }
 
     const updated = await Booking.findByIdAndUpdate(
@@ -114,10 +114,10 @@ exports.updateBookingStatus = async (req, res) => {
       { new: true }
     );
 
-    if (!updated) return res.status(404).json({ error: "Booking not found" });
+    if (!updated) return res.status(404).json({ error: "نوبت پیدا نشد" });
 
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: "Failed to update status" });
+    res.status(500).json({ error: "بروزرسانی وضعیت با خطا مواجه شد" });
   }
 };
