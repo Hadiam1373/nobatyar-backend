@@ -4,6 +4,8 @@ const serviceSchema = new mongoose.Schema({
   name: { type: String, required: true },
   duration: { type: Number, required: true }, // مدت زمان به دقیقه
   price: { type: Number, required: true },
+  city: { type: String, required: true },
+  neighborhood: { type: String, required: true },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
