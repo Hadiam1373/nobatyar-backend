@@ -7,6 +7,13 @@ const userSchema = new mongoose.Schema({
   phone: String,
   passwordHash: String,
   businessName: String,
+  subscriptionStatus: { 
+    type: String, 
+    enum: ["trial", "active", "expired"], 
+    default: "trial" 
+  },
+  trialEndDate: { type: Date, default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) }, // 30 روز
+  currentSubscriptionId: { type: mongoose.Schema.Types.ObjectId, ref: "Subscription" },
   createdAt: { type: Date, default: Date.now },
 });
 

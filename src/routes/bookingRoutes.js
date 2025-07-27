@@ -6,20 +6,33 @@ const Service = require("../models/Service");
 const sendSMS = require("../utils/sms");
 const availabilityController = require("../controllers/availabilityController");
 const authMiddleware = require("../middlewares/authMiddleware");
+const {
+  checkSubscriptionStatus,
+  checkBookingLimit,
+} = require("../middlewares/subscriptionMiddleware");
 const { body, validationResult } = require("express-validator");
 
-router.get("/availability/:userId/:date/:serviceId?", availabilityController.getAvailability);
+router.get(
+  "/availability/:userId/:date/:serviceId?",
+  availabilityController.getAvailability
+);
 
 // ایجاد نوبت جدید - نسخه ساده‌تر
 router.post(
   "/:username",
   authMiddleware,
+  checkSubscriptionStatus,
+  checkBookingLimit,
   [
     body("name").notEmpty().withMessage("نام الزامی است."),
     body("serviceId").isMongoId().withMessage("شناسه سرویس معتبر نیست."),
     body("date").isISO8601().withMessage("تاریخ معتبر وارد کنید."),
-    body("time").matches(/^\d{2}:\d{2}$/).withMessage("ساعت باید به فرمت HH:mm باشد."),
-    body("phone").matches(/^09\d{9}$/).withMessage("شماره تلفن باید به فرمت 09XXXXXXXXX باشد.")
+    body("time")
+      .matches(/^\d{2}:\d{2}$/)
+      .withMessage("ساعت باید به فرمت HH:mm باشد."),
+    body("phone")
+      .matches(/^09\d{9}$/)
+      .withMessage("شماره تلفن باید به فرمت 09XXXXXXXXX باشد."),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -33,7 +46,10 @@ router.post(
 
       const { name, phone, serviceId, date, time } = req.body;
 
-      const service = await Service.findOne({ _id: serviceId, userId: user._id });
+      const service = await Service.findOne({
+        _id: serviceId,
+        userId: user._id,
+      });
       if (!service) return res.status(404).json({ error: "سرویس پیدا نشد" });
 
       // اگر کاربر یا سرویس پیدا نشد:
@@ -133,7 +149,8 @@ router.post(
       if (err.code === 11000) {
         // خطای یکتا بودن (duplicate key)
         return res.status(409).json({
-          error: "این بازه زمانی برای این سرویس قبلاً رزرو شده است. لطفاً زمان دیگری را انتخاب کنید."
+          error:
+            "این بازه زمانی برای این سرویس قبلاً رزرو شده است. لطفاً زمان دیگری را انتخاب کنید.",
         });
       }
       console.error("Error creating booking:", err);
@@ -202,9 +219,7 @@ router.delete("/:username/:bookingId", authMiddleware, async (req, res) => {
     });
 
     if (!booking) {
-      return res
-        .status(404)
-        .json({ error: "نوبت پیدا نشد یا مجاز نیستید" });
+      return res.status(404).json({ error: "نوبت پیدا نشد یا مجاز نیستید" });
     }
 
     res.json({ message: "نوبت با موفقیت حذف شد" });
@@ -313,7 +328,8 @@ router.get("/:username/available-slots", authMiddleware, async (req, res) => {
     const workingHours = await WorkingHours.findOne({ userId: user._id });
     if (!workingHours) {
       return res.status(400).json({
-        error: "ساعات کاری تنظیم نشده است. لطفاً ابتدا ساعات کاری خود را تنظیم کنید.",
+        error:
+          "ساعات کاری تنظیم نشده است. لطفاً ابتدا ساعات کاری خود را تنظیم کنید.",
       });
     }
 
@@ -451,54 +467,60 @@ function generateWorkingSlotsForDay(
 }
 
 // تایید یا رد نوبت توسط ادمین
-router.post("/:username/:bookingId/decision", authMiddleware, async (req, res) => {
-  try {
-    const { username, bookingId } = req.params;
-    const { decision } = req.body; // 'accept' یا 'reject'
+router.post(
+  "/:username/:bookingId/decision",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const { username, bookingId } = req.params;
+      const { decision } = req.body; // 'accept' یا 'reject'
 
-    if (!["accept", "reject"].includes(decision)) {
-      return res.status(400).json({ error: "تصمیم نامعتبر است" });
+      if (!["accept", "reject"].includes(decision)) {
+        return res.status(400).json({ error: "تصمیم نامعتبر است" });
+      }
+
+      const user = await User.findOne({ username });
+      if (!user) return res.status(404).json({ error: "کاربر پیدا نشد" });
+
+      const booking = await Booking.findOne({
+        _id: bookingId,
+        userId: user._id,
+      });
+      if (!booking) return res.status(404).json({ error: "نوبت پیدا نشد" });
+
+      if (decision === "accept") {
+        booking.status = "confirmed";
+        await booking.save();
+        // ارسال پیامک تایید
+        await sendSMS(
+          booking.phone,
+          booking.name,
+          booking.date.toLocaleDateString("fa-IR"),
+          booking.date.toLocaleTimeString("fa-IR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        );
+        return res.json({ message: "نوبت تایید شد و پیامک ارسال شد." });
+      } else {
+        // ارسال پیامک رد
+        await sendSMS(
+          booking.phone,
+          booking.name,
+          booking.date.toLocaleDateString("fa-IR"),
+          booking.date.toLocaleTimeString("fa-IR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        );
+        await Booking.deleteOne({ _id: bookingId });
+        return res.json({ message: "نوبت رد شد، حذف شد و پیامک ارسال شد." });
+      }
+    } catch (err) {
+      console.error("Error in booking decision:", err);
+      res.status(500).json({ error: "پردازش تصمیم با خطا مواجه شد" });
     }
-
-    const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ error: "کاربر پیدا نشد" });
-
-    const booking = await Booking.findOne({ _id: bookingId, userId: user._id });
-    if (!booking) return res.status(404).json({ error: "نوبت پیدا نشد" });
-
-    if (decision === "accept") {
-      booking.status = "confirmed";
-      await booking.save();
-      // ارسال پیامک تایید
-      await sendSMS(
-        booking.phone,
-        booking.name,
-        booking.date.toLocaleDateString("fa-IR"),
-        booking.date.toLocaleTimeString("fa-IR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      );
-      return res.json({ message: "نوبت تایید شد و پیامک ارسال شد." });
-    } else {
-      // ارسال پیامک رد
-      await sendSMS(
-        booking.phone,
-        booking.name,
-        booking.date.toLocaleDateString("fa-IR"),
-        booking.date.toLocaleTimeString("fa-IR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      );
-      await Booking.deleteOne({ _id: bookingId });
-      return res.json({ message: "نوبت رد شد، حذف شد و پیامک ارسال شد." });
-    }
-  } catch (err) {
-    console.error("Error in booking decision:", err);
-    res.status(500).json({ error: "پردازش تصمیم با خطا مواجه شد" });
   }
-});
-
+);
 
 module.exports = router;
