@@ -29,23 +29,27 @@ exports.getUserSummary = async (req, res) => {
     // درصد رشد نسبت به ماه قبل
     let monthlyGrowth = 0;
     if (prevMonthlyBookings > 0) {
-      monthlyGrowth = ((monthlyBookings - prevMonthlyBookings) / prevMonthlyBookings) * 100;
+      monthlyGrowth =
+        ((monthlyBookings - prevMonthlyBookings) / prevMonthlyBookings) * 100;
     } else if (monthlyBookings > 0) {
       monthlyGrowth = 100;
     }
 
     // همه سرویس‌ها
     const allServices = await Service.find({ userId: user._id });
+    console.log("All services:", allServices);
 
     // تعداد رزرو هر سرویس
     const bookingsByService = await Booking.aggregate([
       { $match: { userId: user._id } },
       { $group: { _id: "$service", count: { $sum: 1 } } },
     ]);
-    const bookingsMap = new Map(bookingsByService.map(s => [s._id, s.count]));
+    console.log("Bookings by service:", bookingsByService);
+    const bookingsMap = new Map(bookingsByService.map((s) => [s._id, s.count]));
+    console.log("Bookings map:", Array.from(bookingsMap.entries()));
 
     // سرویس‌ها با تعداد رزرو
-    const servicesWithCount = allServices.map(service => ({
+    const servicesWithCount = allServices.map((service) => ({
       _id: service._id,
       name: service.name,
       count: bookingsMap.get(service.name) || 0,
@@ -53,27 +57,41 @@ exports.getUserSummary = async (req, res) => {
     }));
 
     // سرویس‌های بدون رزرو
-    const noBookingServices = servicesWithCount.filter(s => s.count === 0);
+    const noBookingServices = servicesWithCount.filter((s) => s.count === 0);
+    console.log("Services with count:", servicesWithCount);
+    console.log("No booking services:", noBookingServices);
 
     // بیشترین روز رزرو شده (پیک کاری)
     const peakDayAgg = await Booking.aggregate([
       { $match: { userId: user._id } },
-      { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } }, count: { $sum: 1 } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+          count: { $sum: 1 },
+        },
+      },
       { $sort: { count: -1 } },
-      { $limit: 1 }
+      { $limit: 1 },
     ]);
     const peakDay = peakDayAgg[0] || null;
 
     // تعداد مشتریان یکتا
-    const uniqueCustomers = await Booking.distinct("phone", { userId: user._id });
+    const uniqueCustomers = await Booking.distinct("phone", {
+      userId: user._id,
+    });
 
     // آمار هفتگی
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - 6);
     const weeklyAgg = await Booking.aggregate([
       { $match: { userId: user._id, date: { $gte: startOfWeek, $lte: now } } },
-      { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } }, count: { $sum: 1 } } },
-      { $sort: { _id: 1 } }
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
     ]);
 
     // درآمد کل و درآمد ماه جاری
@@ -83,8 +101,11 @@ exports.getUserSummary = async (req, res) => {
       const count = bookingsMap.get(service.name) || 0;
       totalIncome += count * service.price;
     }
-    for (const booking of await Booking.find({ userId: user._id, date: { $gte: startOfMonth, $lte: now } })) {
-      const service = allServices.find(s => s.name === booking.service);
+    for (const booking of await Booking.find({
+      userId: user._id,
+      date: { $gte: startOfMonth, $lte: now },
+    })) {
+      const service = allServices.find((s) => s.name === booking.service);
       if (service) monthlyIncome += service.price;
     }
 
