@@ -86,7 +86,8 @@ exports.createSubscription = async (req, res) => {
     // بررسی وجود اشتراک فعال
     const existingSubscription = await Subscription.findOne({
       userId: req.user.id,
-      status: { $in: ["active", "pending"] },
+      status: "active",
+      paymentStatus: "completed",
     });
 
     if (existingSubscription) {

@@ -1,15 +1,17 @@
-const ZarinpalCheckout = require("zarinpal-node-sdk");
+require("dotenv").config();
+const ZarinpalCheckout = require("zarinpal-checkout");
 const Subscription = require("../models/Subscription");
 const User = require("../models/User");
 const Plan = require("../models/Plan");
 
+console.log("ZarinpalCheckout:", ZarinpalCheckout);
 // تنظیمات زرین‌پال
-const zarinpal = new ZarinpalCheckout({
-  sandbox: process.env.NODE_ENV !== "production", // در محیط توسعه از sandbox استفاده کن
-  merchant_id:
-    process.env.ZARINPAL_MERCHANT_ID || "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-});
+const zarinpal = ZarinpalCheckout.create(
+  "123e4567-e89b-12d3-a456-426614174000",
+  true
+); // true برای sandbox
 
+console.log("MerchantID:", "123e4567-e89b-12d3-a456-426614174000");
 console.log("Zarinpal instance:", zarinpal);
 console.log(
   "Available methods:",
@@ -30,7 +32,8 @@ exports.createPayment = async (req, res) => {
     // بررسی وجود اشتراک فعال
     const existingSubscription = await Subscription.findOne({
       userId: req.user.id,
-      status: { $in: ["active", "pending"] },
+      status: "active",
+      paymentStatus: "completed",
     });
 
     if (existingSubscription) {
@@ -47,40 +50,48 @@ exports.createPayment = async (req, res) => {
     console.log("Creating payment request for amount:", plan.price);
 
     // استفاده از متد صحیح زرین‌پال
-    const paymentRequest = await zarinpal.requestPayment({
-      amount: plan.price,
-      description: `خرید اشتراک ${plan.name} - ${
-        user.businessName || user.name
-      }`,
-      callback_url: `${
+    const response = await zarinpal.PaymentRequest({
+      Amount: plan.price,
+      CallbackURL: `${
         process.env.FRONTEND_URL || "http://localhost:5173"
       }/payment/verify`,
-      mobile: user.phone,
-      email: user.email,
+      Description: `خرید اشتراک ${plan.name} - ${
+        user.businessName || user.name
+      }`,
+      Email: user.email,
+      Mobile: user.phone,
     });
 
-    if (paymentRequest.status === 100) {
+    if (response.status === 100) {
+      // محاسبه تاریخ شروع و پایان اشتراک
+      const startDate = new Date();
+      const endDate = new Date(
+        startDate.getTime() + plan.duration * 24 * 60 * 60 * 1000
+      );
+
       // ذخیره اطلاعات پرداخت در دیتابیس
       const subscription = new Subscription({
         userId: req.user.id,
         planId,
-        paymentId: paymentRequest.authority,
+        paymentId: response.authority,
         amount: plan.price,
         paymentStatus: "pending",
+        startDate,
+        endDate,
       });
 
       await subscription.save();
 
       res.json({
         success: true,
-        paymentUrl: paymentRequest.url,
-        authority: paymentRequest.authority,
+        paymentUrl: response.url,
+        authority: response.authority,
         subscriptionId: subscription._id,
       });
     } else {
       res.status(400).json({
         message: "خطا در ایجاد درخواست پرداخت",
-        error: paymentRequest.error,
+        error: response.error,
       });
     }
   } catch (error) {
@@ -109,9 +120,9 @@ exports.verifyPayment = async (req, res) => {
     }
 
     // تایید پرداخت در زرین‌پال
-    const verification = await zarinpal.verifyPayment({
-      amount: subscription.amount,
-      authority: authority,
+    const verification = await zarinpal.PaymentVerification({
+      Amount: subscription.amount,
+      Authority: authority,
     });
 
     if (verification.status === 100) {
