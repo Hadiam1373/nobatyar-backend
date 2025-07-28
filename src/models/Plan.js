@@ -8,6 +8,9 @@ const planSchema = new mongoose.Schema({
   features: [String], // ویژگی‌های طرح
   isActive: { type: Boolean, default: true }, // فعال بودن طرح
   maxBookings: { type: Number, default: 100 }, // حداکثر تعداد نوبت
+  maxServices: { type: Number, default: 5 }, // حداکثر تعداد سرویس
+  maxApiCalls: { type: Number, default: 1000 }, // حداکثر تعداد API calls در روز
+  maxReports: { type: Number, default: 10 }, // حداکثر تعداد گزارش در روز
   createdAt: { type: Date, default: Date.now },
 });
 

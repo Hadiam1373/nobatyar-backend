@@ -18,11 +18,15 @@ const defaultPlans = [
     duration: 30, // 30 روز
     features: [
       "حداکثر 50 نوبت در ماه",
+      "حداکثر 3 سرویس",
       "مدیریت سرویس‌ها",
       "گزارش‌گیری پایه",
       "پشتیبانی ایمیلی",
     ],
     maxBookings: 50,
+    maxServices: 3,
+    maxApiCalls: 500,
+    maxReports: 5,
     isActive: true,
   },
   {
@@ -32,12 +36,16 @@ const defaultPlans = [
     duration: 30, // 30 روز
     features: [
       "حداکثر 200 نوبت در ماه",
+      "حداکثر 10 سرویس",
       "مدیریت سرویس‌ها",
       "گزارش‌گیری پیشرفته",
       "پشتیبانی تلفنی",
       "ارسال پیامک خودکار",
     ],
     maxBookings: 200,
+    maxServices: 10,
+    maxApiCalls: 2000,
+    maxReports: 20,
     isActive: true,
   },
   {
@@ -47,6 +55,7 @@ const defaultPlans = [
     duration: 30, // 30 روز
     features: [
       "نوبت نامحدود",
+      "سرویس نامحدود",
       "مدیریت سرویس‌ها",
       "گزارش‌گیری کامل",
       "پشتیبانی 24/7",
@@ -55,6 +64,9 @@ const defaultPlans = [
       "پشتیبان شخصی",
     ],
     maxBookings: 999999, // نامحدود
+    maxServices: 999999, // نامحدود
+    maxApiCalls: 999999, // نامحدود
+    maxReports: 999999, // نامحدود
     isActive: true,
   },
 ];

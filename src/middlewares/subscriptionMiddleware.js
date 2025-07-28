@@ -75,9 +75,13 @@ exports.checkSubscriptionStatus = async (req, res, next) => {
 // بررسی محدودیت تعداد نوبت‌ها
 exports.checkBookingLimit = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id).populate(
-      "currentSubscriptionId"
-    );
+    const user = await User.findById(req.user.id).populate({
+      path: "currentSubscriptionId",
+      populate: {
+        path: "planId",
+        model: "Plan",
+      },
+    });
 
     if (!user || !user.currentSubscriptionId) {
       return res.status(403).json({ message: "اشتراک فعال یافت نشد" });
@@ -85,6 +89,10 @@ exports.checkBookingLimit = async (req, res, next) => {
 
     const subscription = user.currentSubscriptionId;
     const plan = subscription.planId;
+
+    if (!plan) {
+      return res.status(403).json({ message: "طرح اشتراک یافت نشد" });
+    }
 
     // شمارش نوبت‌های امروز
     const today = new Date();
@@ -105,5 +113,126 @@ exports.checkBookingLimit = async (req, res, next) => {
   } catch (error) {
     console.error("خطا در بررسی محدودیت نوبت:", error);
     return res.status(500).json({ message: "خطا در بررسی محدودیت نوبت" });
+  }
+};
+
+// بررسی محدودیت تعداد سرویس‌ها
+exports.checkServiceLimit = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id).populate({
+      path: "currentSubscriptionId",
+      populate: {
+        path: "planId",
+        model: "Plan",
+      },
+    });
+
+    if (!user || !user.currentSubscriptionId) {
+      return res.status(403).json({ message: "اشتراک فعال یافت نشد" });
+    }
+
+    const subscription = user.currentSubscriptionId;
+    const plan = subscription.planId;
+
+    if (!plan) {
+      return res.status(403).json({ message: "طرح اشتراک یافت نشد" });
+    }
+
+    // شمارش سرویس‌های موجود
+    const serviceCount = await require("../models/Service").countDocuments({
+      userId: user._id,
+    });
+
+    // محدودیت تعداد سرویس‌ها بر اساس طرح
+    const maxServices = plan.maxServices || 5; // پیش‌فرض 5 سرویس
+
+    if (serviceCount >= maxServices) {
+      return res.status(403).json({
+        message: `شما حداکثر تعداد سرویس مجاز (${maxServices}) را استفاده کرده‌اید.`,
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error("خطا در بررسی محدودیت سرویس:", error);
+    return res.status(500).json({ message: "خطا در بررسی محدودیت سرویس" });
+  }
+};
+
+// بررسی محدودیت تعداد API calls
+exports.checkApiCallLimit = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id).populate({
+      path: "currentSubscriptionId",
+      populate: {
+        path: "planId",
+        model: "Plan",
+      },
+    });
+
+    if (!user || !user.currentSubscriptionId) {
+      return res.status(403).json({ message: "اشتراک فعال یافت نشد" });
+    }
+
+    const subscription = user.currentSubscriptionId;
+    const plan = subscription.planId;
+
+    if (!plan) {
+      return res.status(403).json({ message: "طرح اشتراک یافت نشد" });
+    }
+
+    // شمارش API calls امروز (می‌توانید از Redis یا دیتابیس استفاده کنید)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // اینجا می‌توانید از یک سیستم tracking استفاده کنید
+    // فعلاً یک محدودیت ساده اعمال می‌کنیم
+    const maxApiCalls = plan.maxApiCalls || 1000; // پیش‌فرض 1000 درخواست در روز
+
+    // برای سادگی، فعلاً این محدودیت را غیرفعال می‌کنیم
+    // در آینده می‌توانید از Redis برای tracking استفاده کنید
+    next();
+  } catch (error) {
+    console.error("خطا در بررسی محدودیت API calls:", error);
+    return res.status(500).json({ message: "خطا در بررسی محدودیت API calls" });
+  }
+};
+
+// بررسی محدودیت تعداد گزارش‌ها
+exports.checkReportLimit = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id).populate({
+      path: "currentSubscriptionId",
+      populate: {
+        path: "planId",
+        model: "Plan",
+      },
+    });
+
+    if (!user || !user.currentSubscriptionId) {
+      return res.status(403).json({ message: "اشتراک فعال یافت نشد" });
+    }
+
+    const subscription = user.currentSubscriptionId;
+    const plan = subscription.planId;
+
+    if (!plan) {
+      return res.status(403).json({ message: "طرح اشتراک یافت نشد" });
+    }
+
+    // شمارش گزارش‌های امروز
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // اینجا می‌توانید از یک سیستم tracking برای گزارش‌ها استفاده کنید
+    // فعلاً یک محدودیت ساده اعمال می‌کنیم
+    const maxReports = plan.maxReports || 10; // پیش‌فرض 10 گزارش در روز
+
+    // برای سادگی، فعلاً این محدودیت را غیرفعال می‌کنیم
+    // در آینده می‌توانید از دیتابیس برای tracking استفاده کنید
+    next();
+  } catch (error) {
+    console.error("خطا در بررسی محدودیت گزارش:", error);
+    return res.status(500).json({ message: "خطا در بررسی محدودیت گزارش" });
   }
 };

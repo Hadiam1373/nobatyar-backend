@@ -5,12 +5,66 @@ const Plan = require("../models/Plan");
 // دریافت اشتراک کاربر
 exports.getUserSubscription = async (req, res) => {
   try {
-    const subscription = await Subscription.findOne({
-      userId: req.user.id,
-      status: { $in: ["active", "pending"] },
-    }).populate("planId");
+    const user = await User.findById(req.user.id);
 
-    res.json(subscription);
+    if (!user) {
+      return res.status(404).json({ message: "کاربر یافت نشد" });
+    }
+
+    // اگر کاربر در حالت trial است
+    if (user.subscriptionStatus === "trial") {
+      const trialEndDate = new Date(user.trialEndDate);
+      const now = new Date();
+
+      if (now > trialEndDate) {
+        // trial منقضی شده
+        return res.json({
+          status: "expired",
+          message: "دوره آزمایشی شما منقضی شده است",
+          trialEndDate: user.trialEndDate,
+        });
+      } else {
+        // trial هنوز فعال است
+        return res.json({
+          status: "trial",
+          message: "دوره آزمایشی فعال",
+          trialEndDate: user.trialEndDate,
+          daysRemaining: Math.ceil(
+            (trialEndDate - now) / (1000 * 60 * 60 * 24)
+          ),
+        });
+      }
+    }
+
+    // اگر کاربر اشتراک فعال دارد
+    if (user.subscriptionStatus === "active" && user.currentSubscriptionId) {
+      const subscription = await Subscription.findById(
+        user.currentSubscriptionId
+      ).populate("planId");
+
+      if (!subscription) {
+        return res.json({
+          status: "expired",
+          message: "اشتراک یافت نشد",
+        });
+      }
+
+      if (subscription.status === "active") {
+        return res.json(subscription);
+      } else {
+        return res.json({
+          status: "expired",
+          message: "اشتراک شما منقضی شده است",
+          subscription: subscription,
+        });
+      }
+    }
+
+    // کاربر هیچ اشتراکی ندارد
+    return res.json({
+      status: "none",
+      message: "هیچ اشتراکی یافت نشد",
+    });
   } catch (error) {
     res
       .status(500)
