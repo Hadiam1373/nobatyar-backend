@@ -37,16 +37,13 @@ exports.getUserSummary = async (req, res) => {
 
     // همه سرویس‌ها
     const allServices = await Service.find({ userId: user._id });
-    console.log("All services:", allServices);
 
     // تعداد رزرو هر سرویس
     const bookingsByService = await Booking.aggregate([
       { $match: { userId: user._id } },
       { $group: { _id: "$service", count: { $sum: 1 } } },
     ]);
-    console.log("Bookings by service:", bookingsByService);
     const bookingsMap = new Map(bookingsByService.map((s) => [s._id, s.count]));
-    console.log("Bookings map:", Array.from(bookingsMap.entries()));
 
     // سرویس‌ها با تعداد رزرو
     const servicesWithCount = allServices.map((service) => ({
@@ -57,9 +54,17 @@ exports.getUserSummary = async (req, res) => {
     }));
 
     // سرویس‌های بدون رزرو
-    const noBookingServices = servicesWithCount.filter((s) => s.count === 0);
-    console.log("Services with count:", servicesWithCount);
-    console.log("No booking services:", noBookingServices);
+    let noBookingServices;
+    if (totalBookings === 0) {
+      // اگر هیچ رزروی وجود ندارد، همه سرویس‌ها بدون رزرو هستند
+      noBookingServices = allServices.map((service) => ({
+        _id: service._id,
+        name: service.name,
+      }));
+    } else {
+      // اگر رزرو وجود دارد، فقط سرویس‌هایی که رزرو ندارند را نشان بده
+      noBookingServices = servicesWithCount.filter((s) => s.count === 0);
+    }
 
     // بیشترین روز رزرو شده (پیک کاری)
     const peakDayAgg = await Booking.aggregate([
