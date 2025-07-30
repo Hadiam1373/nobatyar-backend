@@ -157,4 +157,98 @@ router.delete(
   }
 );
 
+// API مخصوص سایت - دریافت همه سرویس‌های عمومی
+router.get("/site/public", async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 12,
+      city,
+      neighborhood,
+      search,
+      sort = "newest", // newest, oldest, name
+    } = req.query;
+
+    let query = {};
+
+    // فیلتر بر اساس شهر
+    if (city) {
+      query.city = { $regex: city, $options: "i" };
+    }
+
+    // فیلتر بر اساس محله
+    if (neighborhood) {
+      query.$or = [
+        { neighborhood: { $regex: neighborhood, $options: "i" } },
+        { allNeighborhoods: true },
+      ];
+    }
+
+    // جستجو در نام سرویس
+    if (search) {
+      query.name = { $regex: search, $options: "i" };
+    }
+
+    // محاسبه skip برای pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // تعیین sort
+    let sortOption = {};
+    switch (sort) {
+      case "oldest":
+        sortOption = { createdAt: 1 };
+        break;
+      case "name":
+        sortOption = { name: 1 };
+        break;
+      default: // newest
+        sortOption = { createdAt: -1 };
+    }
+
+    // دریافت سرویس‌ها با pagination
+    const services = await Service.find(query)
+      .populate("userId", "username name phone businessName")
+      .sort(sortOption)
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // تعداد کل سرویس‌ها برای pagination
+    const total = await Service.countDocuments(query);
+
+    res.json({
+      services,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / parseInt(limit)),
+        totalItems: total,
+        itemsPerPage: parseInt(limit),
+      },
+    });
+  } catch (err) {
+    console.error("Error fetching public services:", err);
+    res.status(500).json({ error: "دریافت سرویس‌ها با خطا مواجه شد" });
+  }
+});
+
+// دریافت جزئیات یک سرویس خاص
+router.get("/site/service/:serviceId", async (req, res) => {
+  try {
+    const { serviceId } = req.params;
+
+    const service = await Service.findById(serviceId).populate(
+      "userId",
+      "username name phone businessName"
+    );
+
+    if (!service) {
+      return res.status(404).json({ error: "سرویس پیدا نشد" });
+    }
+
+    res.json(service);
+  } catch (err) {
+    console.error("Error fetching service details:", err);
+    res.status(500).json({ error: "دریافت جزئیات سرویس با خطا مواجه شد" });
+  }
+});
+
 module.exports = router;
