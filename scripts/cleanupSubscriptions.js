@@ -4,7 +4,7 @@ const User = require("../src/models/User");
 
 // اتصال به دیتابیس
 mongoose.connect(
-  process.env.MONGODB_URI || "mongodb://localhost:27017/nobatchi",
+  process.env.MONGODB_URI ,
   {
     useNewUrlParser: true,
     useUnifiedTopology: true,

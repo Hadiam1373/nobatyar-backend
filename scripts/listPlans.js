@@ -2,13 +2,10 @@ const mongoose = require("mongoose");
 const Plan = require("../src/models/Plan");
 
 // اتصال به دیتابیس
-mongoose.connect(
-  process.env.MONGODB_URI || "mongodb://localhost:27017/nobatchi",
-  {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  }
-);
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
 
 async function listPlans() {
   try {
